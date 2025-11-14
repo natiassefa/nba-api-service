@@ -35,39 +35,39 @@ The NBA API Service is a standalone microservice that:
 ```
 ┌─────────────────────┐
 │ nba-realtime-service│
-│ (Polls NBA APIs) │
+│ (Polls NBA APIs)    │
 └──────────┬──────────┘
-│
-▼
-┌──────────┐
-│ Kafka │ ← Game update messages
-│(Redpanda)│
-└────┬─────┘
-│
-▼
+           │
+           ▼
+      ┌──────────┐
+      │ Kafka    │ ← Game update messages
+      │(Redpanda)│
+      └────┬─────┘
+           │
+           ▼
 ┌─────────────────────┐
-│ nba-api-service │
-│ │
-│ ┌───────────────┐ │
-│ │ Kafka Consumer│ │ ← Consumes updates
-│ └───────┬───────┘ │
-│ │ │
-│ ▼ │
-│ ┌───────────────┐ │
-│ │ WebSocket │ │ ← Broadcasts to clients
-│ │ Server │ │
-│ └───────┬───────┘ │
-│ │ │
-│ ┌───────┴───────┐ │
-│ │ REST API │ │ ← Serves cached data
-│ └───────┬───────┘ │
-└──────────┼──────────┘
-│
-┌──────┴──────┐
-▼ ▼
+│ nba-api-service     │
+│                     │
+│ ┌───────────────┐   │
+│ │ Kafka Consumer│   │ ← Consumes updates
+│ └───────┬───────┘   │ 
+│         │           │
+│         ▼           │
+│ ┌───────────────┐   │
+│ │ WebSocket     │   │ ← Broadcasts to clients
+│ │ Server        │   │
+│ └───────┬───────┘   │
+│         │           │
+│ ┌───────┴───────┐   │
+│ │   REST API    │   │ ← Serves cached data
+│ └───────┬───────┘   │
+└─────────┼───────────┘
+          │
+   ┌──────┴──────┐
+  ▼              ▼
 ┌─────────┐ ┌──────────┐
-│ Redis │ │WebSocket │
-│ (Cache) │ │ Clients │
+│ Redis   │ │ WebSocket│
+│ (Cache) │ │ Clients  │
 └─────────┘ └──────────┘
 
 ```
