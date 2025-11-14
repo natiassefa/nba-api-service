@@ -1,0 +1,430 @@
+openapi: 3.0.3
+info:
+  title: NBA API Service
+  description: |
+    REST API and WebSocket service for NBA game data.
+    
+    This service provides:
+    - REST endpoints to query NBA game schedules and game data from Redis
+    - WebSocket endpoint for real-time game updates
+    
+    **WebSocket Endpoint**: `ws://host:port/ws`
+    
+    WebSocket clients can subscribe to game updates by sending:
+    - `{"type": "subscribe", "gameId": "game-id"}` - Subscribe to specific game
+    - `{"type": "subscribe", "all": true}` - Subscribe to all games
+    - `{"type": "unsubscribe", "gameId": "game-id"}` - Unsubscribe from game
+    - `{"type": "unsubscribe", "all": true}` - Unsubscribe from all games
+    
+    Updates are broadcast when game data changes are detected via Kafka.
+  version: 1.0.0
+  contact:
+    name: NBA API Service
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (example)
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the health status of the API service and current WebSocket connection count
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                timestamp: "2025-01-08T12:00:00.000Z"
+                websocketConnections: 5
+
+  /api/schedules/{date}:
+    get:
+      summary: Get schedule for a specific date
+      description: Retrieves the NBA game schedule for a specific date in YYYY-MM-DD format
+      operationId: getSchedule
+      tags:
+        - Schedules
+      parameters:
+        - name: date
+          in: path
+          required: true
+          description: Date in YYYY-MM-DD format
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+            example: "2025-01-08"
+      responses:
+        '200':
+          description: Schedule retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+              example:
+                date: "2025-01-08"
+                games:
+                  - id: "abc123-def456-ghi789"
+                    status: "scheduled"
+                    home:
+                      name: "Los Angeles Lakers"
+                      alias: "LAL"
+                      id: "team-123"
+                    away:
+                      name: "Boston Celtics"
+                      alias: "BOS"
+                      id: "team-456"
+        '400':
+          description: Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                error: "InvalidDate"
+                message: "Date must be in YYYY-MM-DD format"
+                statusCode: 400
+        '404':
+          description: No schedule found for the specified date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                error: "NotFound"
+                message: "No schedule found for date 2025-01-08"
+                statusCode: 404
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/games/{gameId}:
+    get:
+      summary: Get game metadata
+      description: Retrieves metadata for a specific game (teams, status, etc.)
+      operationId: getGameMetadata
+      tags:
+        - Games
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          description: Unique game identifier (UUID)
+          schema:
+            type: string
+            format: uuid
+            example: "abc123-def456-ghi789"
+      responses:
+        '200':
+          description: Game metadata retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameMetadata'
+              example:
+                id: "abc123-def456-ghi789"
+                status: "scheduled"
+                home:
+                  name: "Los Angeles Lakers"
+                  alias: "LAL"
+                away:
+                  name: "Boston Celtics"
+                  alias: "BOS"
+        '404':
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                error: "NotFound"
+                message: "Game abc123-def456-ghi789 not found"
+                statusCode: 404
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/games/{gameId}/summary:
+    get:
+      summary: Get game summary
+      description: Retrieves the current game summary including scores, statistics, and status
+      operationId: getGameSummary
+      tags:
+        - Games
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          description: Unique game identifier (UUID)
+          schema:
+            type: string
+            format: uuid
+            example: "abc123-def456-ghi789"
+      responses:
+        '200':
+          description: Game summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSummary'
+              example:
+                id: "abc123-def456-ghi789"
+                status: "inprogress"
+                home:
+                  name: "Los Angeles Lakers"
+                  alias: "LAL"
+                  points: 95
+                away:
+                  name: "Boston Celtics"
+                  alias: "BOS"
+                  points: 88
+        '404':
+          description: Game summary not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                error: "NotFound"
+                message: "Summary for game abc123-def456-ghi789 not found"
+                statusCode: 404
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/games/{gameId}/pbp:
+    get:
+      summary: Get play-by-play data
+      description: Retrieves the play-by-play events for a specific game
+      operationId: getGamePlayByPlay
+      tags:
+        - Games
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          description: Unique game identifier (UUID)
+          schema:
+            type: string
+            format: uuid
+            example: "abc123-def456-ghi789"
+      responses:
+        '200':
+          description: Play-by-play data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayByPlay'
+              example:
+                id: "abc123-def456-ghi789"
+                sequence: 1
+                events:
+                  - type: "field_goal"
+                    player: "LeBron James"
+                    points: 2
+                    time: "12:00"
+        '404':
+          description: Play-by-play data not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                error: "NotFound"
+                message: "Play-by-play for game abc123-def456-ghi789 not found"
+                statusCode: 404
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - websocketConnections
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Service health status
+          example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+          description: Current server timestamp in ISO 8601 format
+          example: "2025-01-08T12:00:00.000Z"
+        websocketConnections:
+          type: integer
+          minimum: 0
+          description: Number of active WebSocket connections
+          example: 5
+
+    Schedule:
+      type: object
+      required:
+        - date
+        - games
+      properties:
+        date:
+          type: string
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: Date in YYYY-MM-DD format
+          example: "2025-01-08"
+        games:
+          type: array
+          description: List of games scheduled for this date
+          items:
+            $ref: '#/components/schemas/GameReference'
+
+    GameReference:
+      type: object
+      required:
+        - id
+        - status
+        - home
+        - away
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique game identifier
+          example: "abc123-def456-ghi789"
+        status:
+          type: string
+          description: Game status (e.g., scheduled, inprogress, closed)
+          example: "scheduled"
+        home:
+          $ref: '#/components/schemas/TeamRef'
+        away:
+          $ref: '#/components/schemas/TeamRef'
+
+    TeamRef:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Full team name
+          example: "Los Angeles Lakers"
+        alias:
+          type: string
+          description: Team abbreviation
+          example: "LAL"
+        id:
+          type: string
+          description: Team identifier
+          example: "team-123"
+
+    GameMetadata:
+      type: object
+      description: Game metadata structure (structure matches GameReference but may contain additional fields)
+      allOf:
+        - $ref: '#/components/schemas/GameReference'
+        - type: object
+          description: Additional metadata fields may be present
+
+    GameSummary:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique game identifier
+          example: "abc123-def456-ghi789"
+        status:
+          type: string
+          description: Current game status
+          example: "inprogress"
+        home:
+          type: object
+          description: Home team data (structure varies based on Sportradar API response)
+          additionalProperties: true
+        away:
+          type: object
+          description: Away team data (structure varies based on Sportradar API response)
+          additionalProperties: true
+
+    PlayByPlay:
+      type: object
+      required:
+        - id
+        - sequence
+        - events
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique game identifier
+          example: "abc123-def456-ghi789"
+        sequence:
+          type: integer
+          description: Sequence number for ordering events
+          example: 1
+        events:
+          type: array
+          description: Array of play-by-play events
+          items:
+            type: object
+            description: Play-by-play event (structure varies based on Sportradar API response)
+            additionalProperties: true
+
+    ApiError:
+      type: object
+      required:
+        - error
+        - message
+        - statusCode
+      properties:
+        error:
+          type: string
+          description: Error code identifier
+          enum:
+            - InvalidDate
+            - NotFound
+            - InternalError
+          example: "NotFound"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Game abc123-def456-ghi789 not found"
+        statusCode:
+          type: integer
+          description: HTTP status code
+          example: 404
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Schedules
+    description: Schedule endpoints for retrieving game schedules by date
+  - name: Games
+    description: Game data endpoints for retrieving game metadata, summaries, and play-by-play data
+
