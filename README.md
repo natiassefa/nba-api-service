@@ -100,9 +100,9 @@ The easiest way to get started is using Docker Compose:
 ```bash
 # Start all services (Redis, Redpanda, and API service)
 docker compose up -d
-```
 
-```
+
+
 # View logs
 
 docker compose logs -f nba-api-service
@@ -110,10 +110,6 @@ docker compose logs -f nba-api-service
 # Stop everything
 
 docker compose down
-
-```
-
-```
 
 ```
 
@@ -156,29 +152,16 @@ docker compose up -d nba-api-service
 ```bash
 # Install dependencies
 pnpm install
-```
 
 
 
 # Build TypeScript
 
-
 pnpm run build
-
-
 
 # Start production server
 
-
 pnpm start
-
-
-```
-
-```
-
-
-```
 
 ```
 
@@ -255,9 +238,6 @@ curl http://localhost:3000/api/schedules/2025-01-08
 }
 ```
 
-
-```
-
 **Errors:**
 
 - `400` - Invalid date format
@@ -268,10 +248,9 @@ curl http://localhost:3000/api/schedules/2025-01-08
 
 
 #### Get Game Metadata
-```
+bash
 
 
-```bash
 GET /api/games/{gameId}
 
 ```
@@ -455,9 +434,17 @@ If an invalid message is sent or service is unavailable:
 {
 "type": "error",
 "error": "Invalid message format"
-}
 
-````
+}
+```
+
+```
+
+
+```
+
+```
+
 
 ## Configuration
 
@@ -469,7 +456,10 @@ Environment variables (set in `docker-compose.yml` or `.env` file):
 REDIS_HOST=localhost          # Redis host (default: localhost)
 REDIS_PORT=6379              # Redis port (default: 6379)
 REDIS_PASSWORD=               # Redis password (optional)
-````
+```
+
+```
+
 
 ### Kafka Configuration
 
@@ -745,8 +735,6 @@ docker compose exec postgres psql -U nba -d nba -c "SELECT 1"
 
 # Check database configuration
 docker compose exec nba-api-service node -e "console.log(process.env.DB_HOST)"
-```
-
 ```
 
 ## Related Projects
